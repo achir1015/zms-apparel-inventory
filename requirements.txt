@@ -1,0 +1,5 @@
+flet==1.1.2
+flet-desktop==1.1.2
+pymysql>=1.1
+pytest>=8
+pyzbar>=0.1.9  # 測試用：驗證條碼可解碼

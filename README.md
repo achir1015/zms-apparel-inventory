@@ -1,0 +1,54 @@
+# 資料助秘工具之服飾業進銷存系統
+
+舊「凱新資訊 VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版**。
+
+## 安裝（Windows 10/11 64 位元）
+- 執行 `dist-installer\ZMSInventory-Setup-0.5.0.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
+- 安裝檔內附 MariaDB 10.11，別台電腦不必另外安裝。
+- 安裝版的資料與設定在 `%LOCALAPPDATA%\ZMSInventory`（`config.json`、`mariadb\`、`zms.log`）；解除安裝不會刪除資料。
+- 重新建置：`.venv\Scripts\python tools\build_windows.py`（flet pack ＋ Inno Setup 6）。
+
+## 資料庫
+- 預設「內建 MariaDB」：程式開啟時自動啟動（port 3318，只聽本機），關閉視窗時自動停止。資料庫名稱 `zms_inventory`。
+- 也可在登入畫面或「系統維護 → 工具」按「資料庫連線設定」，改連既有的 MariaDB（例如筆電上 port 3306 的那套），有「測試連線」按鈕。
+- Windows 版 MariaDB 的 root 若只允許 Windows 驗證（GSSAPI），請先用 HeidiSQL 建專用帳號：
+  `CREATE USER 'zms'@'localhost' IDENTIFIED BY '密碼'; GRANT ALL ON zms_inventory.* TO 'zms'@'localhost';`
+
+## 開發版執行
+- 雙擊 `啟動進銷存系統.bat`（資料在 `data\`）。
+- 第一次開啟、資料庫沒有任何帳號時，會請你建立系統管理員帳號。
+- 舊資料：「系統維護 → 工具 → 舊系統資料匯入」選 `E:\進銷存系統\KS`。
+
+## 功能
+| 群組 | 內容 |
+|---|---|
+| 服飾業專用 | 整款建檔（一個貨號勾選顏色、選尺寸組，一次產生全部顏色尺寸）、開單「尺寸矩陣」輸入（顏色×尺寸表格，附目前庫存）、庫存尺寸分布表、銷售分析依年度季別／款式／尺寸、吊牌條碼標籤（Code 128；40×60／35×50 吊牌、50×30 貼紙、A4 24 格；可依單據數量列印；有特價時印原價劃線＋特價）、特價品（依貨號／依客戶，指定期間的特價或折數，開單自動套用並標示「特價」）、裝箱標籤（出貨／退貨／調撥／退廠單，第 i / N 箱） |
+| 基本資料 | 產品（貨號＋顏色＋尺寸、年度、季別、款式、布料、性別、售價一～三、成本、條碼）、店家、廠商、人員、倉庫、代碼（顏色／尺寸／類別／品牌／系列／季別／款式／布料／單位／原因／費用科目） |
+| 倉庫單據 | 進貨、退廠、調撥、壞品、採購、調整、盤點（盤差自動產生調整單） |
+| 店家單據 | 出貨、退貨、銷貨（現金／刷卡／禮券）、調撥、訂單、異動、盤點 |
+| 查詢報表 | 庫存、進銷存（期初／各單據／期末）、銷售分析（貨號／店家／品牌／月份／人員，含毛利）、採購與訂單追蹤、產品異動明細；全部可匯出 Excel（CSV） |
+| 補貨調度 | 補貨建議（依銷售／依庫存量／依安全存量，倉庫不足時銷量高的店先配，一鍵產生出貨單）、轉貨建議（店與店之間多的調給缺的，一鍵產生調撥單）、追加採購／追裁建議（扣除已訂未進，一鍵產生採購單） |
+| 應收帳款 | 月結（批發依出退貨、專櫃依銷售扣抽成）、收款沖帳、店家費用、應收餘額 |
+| 系統維護 | 使用者與功能權限、公司設定（尺寸組）、庫存校帳、備份／回存（.sql.gz）、舊資料匯入 |
+
+單據存檔、修改、刪除時，倉庫與店家庫存在同一個資料庫交易內自動加減；「庫存校帳」可由全部單據重算。
+
+## 開發
+```bash
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m pytest -q tests      # 核心邏輯＋畫面煙霧測試
+.venv\Scripts\python main.py                 # 桌面版
+.venv\Scripts\python run_web.py              # 網頁模式 http://127.0.0.1:8550
+```
+
+| 檔案 | 用途 |
+|---|---|
+| `zms/schema.sql` | 資料表結構 |
+| `zms/doctypes.py` | 14 種單據與庫存影響 |
+| `zms/services.py` | 業務邏輯 |
+| `zms/importer.py`、`zms/dbf.py` | 舊 DBF 匯入 |
+| `zms/server.py` | 內建 MariaDB 自動啟停 |
+| `zms/ui/` | Flet 介面 |
+
+舊系統解析報告與解出的原始碼：`..\analysis\`。

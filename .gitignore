@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+data/
+build/
+packaging/mariadb/
+dist/
+dist-installer/
+*.spec
+build-mac/
+dist-mac/
+*.log
