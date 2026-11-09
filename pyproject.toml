@@ -1,6 +1,6 @@
 [project]
 name = "zms-inventory"
-version = "0.6.0"
+version = "0.6.1"
 description = "資料助秘工具之服飾業進銷存系統"
 authors = [{ name = "吳玉柱", email = "achir1015@gmail.com" }]
 requires-python = ">=3.10"

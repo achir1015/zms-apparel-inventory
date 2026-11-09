@@ -297,3 +297,24 @@ def test_mobile_user(svc):
     finally:
         lan.drop_mobile_user(svc.db)
     assert lan.lan_ips() is not None
+
+
+def test_migrate(svc):
+    """搬移：複製到另一個資料庫，筆數一致，原資料庫不變。"""
+    from zms import migrate
+    src_cfg = svc.db.cfg
+    before = migrate.exact_counts(svc.db, ["products", "docs", "doc_lines", "stock"])
+    target = config.Config(**{**src_cfg.__dict__})
+    target.database = "zms_migtest"
+    try:
+        assert not migrate.target_has_data(target)
+        copied = migrate.migrate(svc.db, target, log=lambda m: None)
+        assert copied["products"] == before["products"] and copied["docs"] == before["docs"]
+        assert migrate.target_has_data(target)
+        t = Service(Database(target))
+        t.login("admin", "1234")                      # 使用者與密碼雜湊也一起搬過去
+        assert t.db.scalar("SELECT SUM(qty) FROM stock") == svc.db.scalar("SELECT SUM(qty) FROM stock")
+        t.db.close()
+        assert migrate.exact_counts(svc.db, ["products", "docs", "doc_lines", "stock"]) == before
+    finally:
+        svc.db.run("DROP DATABASE IF EXISTS zms_migtest")

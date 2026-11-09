@@ -34,7 +34,10 @@ def ensure_mobile_user(db, cfg):
     db.run("CREATE USER IF NOT EXISTS '%s'@'%%%%' IDENTIFIED BY %%s" % MOBILE_USER, (pw,))
     db.run("ALTER USER '%s'@'%%%%' IDENTIFIED BY %%s" % MOBILE_USER, (pw,))
     db.run("GRANT SELECT, INSERT, UPDATE, DELETE ON `%s`.* TO '%s'@'%%'" % (name, MOBILE_USER))
-    db.run("FLUSH PRIVILEGES")
+    try:
+        db.run("FLUSH PRIVILEGES")   # CREATE USER／GRANT 已即時生效；專用帳號沒有 RELOAD 權限時略過
+    except Exception:
+        pass
     cfg.extra["mobile_password"] = pw
     return pw
 

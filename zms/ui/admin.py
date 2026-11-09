@@ -120,6 +120,8 @@ class ToolsView(ft.Column):
                                                     on_click=self.do_import)))
         if ctx.svc.can("M1"):
             cards.append(self._mobile_card())
+            if app:
+                cards.append(self._migrate_card())
         cards.append(self._card("資料庫連線","模式：%s　伺服器：%s:%s　資料庫：%s\n設定檔：%s" % (
             "內建（程式自動啟停）" if cfg.mode == "embedded" else "外部伺服器", cfg.host, cfg.port, cfg.database, cfg.path),
             ft.FilledButton("資料庫連線設定", icon=ft.Icons.STORAGE,
@@ -129,24 +131,28 @@ class ToolsView(ft.Column):
                                                border_radius=6))], expand=True, scroll=ft.ScrollMode.AUTO)
 
     def _mobile_card(self):
-        """允許手機（iPhone／Android）透過同一個 Wi-Fi 連到這台電腦的資料庫。"""
+        """允許手機（iPhone／Android）透過同一個 Wi-Fi 連到這台電腦的資料庫。
+        內建資料庫：開放區網並重啟；本機另外安裝的 MariaDB（例如 11.8）：只建立手機帳號。"""
         from .. import lan
         cfg = self.ctx.svc.db.cfg
+        local_ext = cfg.mode == "external" and cfg.host in ("127.0.0.1", "localhost", "::1") + tuple(lan.lan_ips())
         on = bool(cfg.extra.get("lan"))
         info = ft.Column(spacing=2)
-        if cfg.mode != "embedded":
+        if cfg.mode == "external" and not local_ext:
             info.controls = [ft.Text("目前連的是外部伺服器 %s:%s，手機請直接連那台伺服器。" % (cfg.host, cfg.port), size=13)]
         elif on:
             ips = lan.lan_ips()
             info.controls = [
                 ft.Text("手機 App 的「資料庫連線設定」請輸入：", size=13),
-                ft.Text("伺服器：%s" % ("　或　".join(ips) or "（找不到區網 IP）"), size=15, weight=ft.FontWeight.BOLD,
+                # 只顯示主要網卡（虛擬網卡 172.x 之類手機連不到，列出來反而會填錯）
+                ft.Text("伺服器 IP：%s" % (ips[0] if ips else "（找不到區網 IP）"), size=15, weight=ft.FontWeight.BOLD,
                         selectable=True),
                 ft.Text("連接埠：%s　　帳號：%s　　密碼：%s" % (cfg.port, lan.MOBILE_USER,
                                                      cfg.extra.get("mobile_password", "")),
                         size=15, weight=ft.FontWeight.BOLD, selectable=True),
-                ft.Text("手機要和這台電腦連同一個 Wi-Fi；這台電腦的進銷存程式要開著。第一次開啟時 Windows 防火牆若詢問"
-                        "「mariadbd」是否允許，請勾「私人網路」並允許。", size=12, color=ft.Colors.GREY_700)]
+                ft.Text("手機要和這台電腦連同一個 Wi-Fi；這台電腦的進銷存程式要開著（使用另外安裝的 MariaDB 時，"
+                        "該 MariaDB 服務要開著）。Windows 防火牆若詢問「mariadbd」，請勾「私人網路」並允許。",
+                        size=12, color=ft.Colors.GREY_700)]
 
         def toggle(e):
             want = e.control.value
@@ -158,19 +164,95 @@ class ToolsView(ft.Column):
                     lan.drop_mobile_user(self.ctx.svc.db)
                 cfg.extra["lan"] = bool(want)
                 self.ctx.svc.log("mobile_access", "on" if want else "off")
-                self.app.restart()   # 重新啟動資料庫，套用區網設定
+                if cfg.mode == "embedded":
+                    self.app.restart()   # 內建資料庫：重新啟動以套用區網設定
+                else:
+                    from .. import config as _c
+                    _c.save(cfg)
+                    self.app.select_item(2)   # 重新整理本頁（工具）
             if want:
-                self.ctx.confirm("允許手機連線", "資料庫會開放給同一個區網（Wi-Fi）內的裝置連線，"
-                                 "使用專用帳號與密碼。程式會重新啟動資料庫並回到登入畫面，確定？", go, "允許")
+                self.ctx.confirm("允許手機連線", "資料庫會開放給同一個區網（Wi-Fi）內的裝置連線，使用專用帳號與密碼。"
+                                 + ("程式會重新啟動資料庫並回到登入畫面，" if cfg.mode == "embedded" else "") + "確定？",
+                                 go, "允許")
                 e.control.value = False
                 e.control.update()
             else:
                 go()
 
-        sw = ft.Switch(label="允許手機連線", value=on, disabled=cfg.mode != "embedded" or not self.app,
+        sw = ft.Switch(label="允許手機連線", value=on, disabled=(cfg.mode == "external" and not local_ext) or not self.app,
                        on_change=toggle)
         return self._card("手機連線（iPhone／Android）", "開啟後，手機 App 可透過 Wi-Fi 使用這台電腦的資料"
                           "（庫存查詢、門市銷貨、盤點、營運總覽）。", ft.Column([sw, info]))
+
+    def _migrate_card(self):
+        """把目前的資料複製到另一台 MariaDB（例如本機的 MariaDB 11.8），之後改連那台；原資料庫保留不動。"""
+        from .. import config as _c
+        cur = self.ctx.svc.db.cfg
+        host = tf("伺服器", "127.0.0.1", width=150)
+        port = tf("連接埠", "3307", width=90)
+        user = tf("帳號", "root", width=120)
+        pw = tf("密碼", "", width=160, password=True, can_reveal_password=True)
+        dbn = tf("資料庫名稱", cur.database, width=150)
+        msg = ft.Text("", size=13, selectable=True)
+
+        def target():
+            t = _c.Config(**{k: v for k, v in cur.__dict__.items() if k != "extra"})
+            t.extra = dict(cur.extra)
+            t.mode, t.host, t.port = "external", (host.value or "").strip(), int((port.value or "3306").strip())
+            t.user, t.password, t.database = (user.value or "").strip(), pw.value or "", (dbn.value or "").strip()
+            return t
+
+        def test(e):
+            from ..db import test_connection
+            ok, text = test_connection(host.value.strip(), port.value.strip() or 3306, user.value.strip(), pw.value,
+                                       dbn.value.strip() or "zms_inventory")
+            msg.value, msg.color = text, ft.Colors.GREEN_700 if ok else ft.Colors.RED
+            msg.update()
+
+        def start(e):
+            try:
+                t = target()
+            except ValueError:
+                self.ctx.toast("連接埠要是數字", True)
+                return
+            if (t.host, int(t.port), t.database) == (cur.host, int(cur.port), cur.database):
+                self.ctx.toast("目標和目前的資料庫相同", True)
+                return
+            from .. import migrate as _m
+
+            def go():
+                def run():
+                    if cur.mode == "embedded" and cur.password:
+                        t.extra["embedded_password"] = cur.password
+                    self.write("開始複製到 %s:%s / %s …" % (t.host, t.port, t.database))
+                    copied = _m.migrate(self.ctx.svc.db, t, log=self.write)
+                    self.write("完成：%d 個資料表、%d 筆，筆數驗證一致" % (len(copied), sum(copied.values())))
+                    t.extra["lan"] = False            # 手機帳號要在新伺服器重新開啟
+                    t.extra.pop("mobile_password", None)
+                    for k, v in t.__dict__.items():
+                        setattr(cur, k, v)
+                    _c.save(cur)
+                    self.ctx.toast("已搬到 %s:%s，程式將重新連線" % (t.host, t.port))
+                    self.app.restart()
+                self._bg(run)
+            try:
+                has = _m.target_has_data(t)
+            except Exception as ex:
+                from ..db import friendly_error
+                msg.value, msg.color = friendly_error(ex), ft.Colors.RED
+                msg.update()
+                return
+            warn = ("目標資料庫「%s」已經有進銷存資料，會被目前的資料覆蓋！\n" % t.database) if has else ""
+            self.ctx.confirm("搬移資料庫", warn + "將把目前的資料複製到 %s:%s / %s，完成後改連那台。\n"
+                             "目前的資料庫不會刪除，可隨時從「資料庫連線設定」切回。確定？" % (t.host, t.port, t.database),
+                             go, "開始搬移")
+
+        return self._card("搬到其他 MariaDB（原資料保留）",
+                          "例如搬到這台筆電另外安裝的 MariaDB 11.8（預設 port 3307）。帳號需能建立資料庫與帳號（例如 root）。"
+                          "目前的資料庫只會被讀取、不會刪除。",
+                          ft.Column([ft.Row([host, port, user, pw, dbn], wrap=True), msg,
+                                     ft.Row([ft.OutlinedButton("測試連線", icon=ft.Icons.WIFI_TETHERING, on_click=test),
+                                             ft.FilledButton("開始搬移", icon=ft.Icons.MOVE_UP, on_click=start)])]))
 
     def _card(self, title, desc, action):
         return ft.Card(ft.Container(ft.Column([ft.Text(title, size=16, weight=ft.FontWeight.BOLD),

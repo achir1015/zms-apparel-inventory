@@ -103,10 +103,29 @@ class EmbeddedServer:
         except Exception:
             return False
 
+    def _datadir_in_use(self) -> bool:
+        """有沒有 mariadbd 正在用我們的設定檔（同一個資料夾）在跑？"""
+        try:
+            if os.name == "nt":
+                out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                                      "Get-CimInstance Win32_Process -Filter \"Name='mariadbd.exe'\" | "
+                                      "ForEach-Object { $_.CommandLine }"],
+                                     capture_output=True, text=True, timeout=20, creationflags=_NOWIN,
+                                     encoding="utf-8", errors="replace").stdout
+            else:
+                out = subprocess.run(["ps", "-Ao", "command"], capture_output=True, text=True, timeout=10).stdout
+        except Exception:
+            return False
+        return os.path.normcase(self.ini) in os.path.normcase(out)
+
     def start(self, timeout: float = 30):
         if port_open(self.cfg.host, self.cfg.port):
             if self._ours_running():
                 return  # 已在執行（可能是上次沒關乾淨，或另一個視窗）
+            if self._datadir_in_use():
+                # 同一個資料夾已有資料庫在跑，只是密碼對不上 → 絕不能再開第二份（會毀損資料）
+                raise RuntimeError("資料庫已在執行，但目前設定檔的密碼無法登入。請關閉所有進銷存視窗後再開啟；"
+                                   "若仍失敗，請聯絡系統管理員。")
             # 連接埠被別的程式佔用 → 換一個空的
             for p in range(3318, 3400):
                 if not port_open(self.cfg.host, p):

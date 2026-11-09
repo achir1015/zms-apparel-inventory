@@ -274,7 +274,11 @@ class App:
             return
         p.show_dialog(ft.AlertDialog(
             modal=True, title=ft.Text("資料庫連線設定"),
-            content=ft.Container(ft.Column([mode, ext, msg], tight=True, scroll=ft.ScrollMode.AUTO), width=560),
+            content=ft.Container(ft.Column([
+                ft.Text("這裡設定的是「這台電腦」的進銷存資料放在哪裡。手機的連線資料請填在手機 App 上，"
+                        "不是這裡；手機要用的 IP 與密碼在「系統維護 → 工具 → 手機連線」。",
+                        size=12, color=ft.Colors.ORANGE_800),
+                mode, ext, msg], tight=True, scroll=ft.ScrollMode.AUTO), width=560),
             actions=[ft.TextButton("取消", on_click=lambda e: p.pop_dialog()),
                      ft.OutlinedButton("測試連線", icon=ft.Icons.WIFI_TETHERING, on_click=test),
                      ft.FilledButton("儲存並重新連線", icon=ft.Icons.SAVE, on_click=save)]))
