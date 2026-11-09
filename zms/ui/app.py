@@ -197,14 +197,24 @@ class App:
         mode = ft.RadioGroup(value="external" if self.mobile else c.mode, content=ft.Column([
             ft.Radio(value="embedded", label="內建 MariaDB（程式自動啟動、關閉即停止，資料放在本機）",
                      visible=not self.mobile),
-            ft.Radio(value="external", label="連到既有的 MariaDB 伺服器（本機已安裝的、或公司伺服器）")], spacing=0))
-        host = tf("伺服器", c.host if c.mode == "external" else "127.0.0.1", width=200)
-        port = tf("連接埠", str(c.port if c.mode == "external" else 3306), width=100)
-        user = tf("帳號", c.user if c.mode == "external" else "root", width=160)
-        pw = tf("密碼", c.password if c.mode == "external" else "", width=200, password=True, can_reveal_password=True)
-        dbn = tf("資料庫名稱", c.database, width=200)
-        ext = ft.Column([ft.Row([host, port], wrap=True), ft.Row([user, pw], wrap=True), dbn],
-                        visible=c.mode == "external")
+            ft.Radio(value="external", label="連到電腦上的進銷存資料庫" if self.mobile else
+                     "連到既有的 MariaDB 伺服器（本機已安裝的、或公司伺服器）")], spacing=0))
+        mw = None if self.mobile else 0   # 手機：欄位一律全寬、一行一個
+        host = tf("伺服器 IP（電腦畫面上顯示的）" if self.mobile else "伺服器",
+                  c.host if c.mode == "external" else "127.0.0.1", width=mw if self.mobile else 200,
+                  keyboard_type=ft.KeyboardType.URL if self.mobile else None, hint_text="例：192.168.6.172")
+        port = tf("連接埠", str(c.port if c.mode == "external" else 3306), width=mw if self.mobile else 100,
+                  keyboard_type=ft.KeyboardType.NUMBER)
+        user = tf("帳號", c.user if c.mode == "external" else "root", width=mw if self.mobile else 160)
+        pw = tf("密碼", c.password if c.mode == "external" else "", width=mw if self.mobile else 200, password=True,
+                can_reveal_password=True)
+        dbn = tf("資料庫名稱", c.database, width=mw if self.mobile else 200)
+        if self.mobile:
+            ext = ft.Column([host, port, user, pw, dbn], horizontal_alignment=ft.CrossAxisAlignment.STRETCH, spacing=10,
+                            visible=c.mode == "external")
+        else:
+            ext = ft.Column([ft.Row([host, port], wrap=True), ft.Row([user, pw], wrap=True), dbn],
+                            visible=c.mode == "external")
         msg = ft.Text("", size=13, selectable=True)
 
         def on_mode(e):
@@ -245,10 +255,26 @@ class App:
         # 切到外部前記住內建實例的密碼，切回來時還能用
         if c.mode == "embedded" and c.password:
             c.extra["embedded_password"] = c.password
+        if self.mobile:
+            # 手機：整頁顯示（對話框太窄），按鈕放在欄位下方
+            body = ft.Column([ft.Text("資料庫連線設定", size=22, weight=ft.FontWeight.BOLD, color=PRIMARY),
+                              ft.Text("在電腦版「系統維護 → 工具 → 手機連線」打開「允許手機連線」，"
+                                      "把畫面上的伺服器 IP、連接埠與密碼填在下面。手機要和電腦連同一個 Wi-Fi。",
+                                      size=13, color=ft.Colors.GREY_700),
+                              ext, msg,
+                              ft.OutlinedButton("測試連線", icon=ft.Icons.WIFI_TETHERING, on_click=test, height=46),
+                              ft.FilledButton("儲存並連線", icon=ft.Icons.SAVE, on_click=save, height=48),
+                              ft.TextButton("返回", on_click=lambda e: self.start())],
+                             horizontal_alignment=ft.CrossAxisAlignment.STRETCH, spacing=12, scroll=ft.ScrollMode.AUTO)
+            mode.value = "external"
+            self._settings_page = True
+            p.controls.clear()
+            p.add(ft.SafeArea(ft.Container(body, padding=20, expand=True), expand=True))
+            p.update()
+            return
         p.show_dialog(ft.AlertDialog(
             modal=True, title=ft.Text("資料庫連線設定"),
-            content=ft.Container(ft.Column([mode, ext, msg], tight=True, scroll=ft.ScrollMode.AUTO),
-                                 width=None if self.mobile else 560),
+            content=ft.Container(ft.Column([mode, ext, msg], tight=True, scroll=ft.ScrollMode.AUTO), width=560),
             actions=[ft.TextButton("取消", on_click=lambda e: p.pop_dialog()),
                      ft.OutlinedButton("測試連線", icon=ft.Icons.WIFI_TETHERING, on_click=test),
                      ft.FilledButton("儲存並重新連線", icon=ft.Icons.SAVE, on_click=save)]))

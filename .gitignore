@@ -11,3 +11,4 @@ build-mac/
 dist-mac/
 *.log
 data_mobile/
+dist-android/
