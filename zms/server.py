@@ -9,7 +9,7 @@ from .config import Config, save
 MY_INI = """[mysqld]
 datadir={datadir}
 port={port}
-{extra}bind-address=127.0.0.1
+{extra}bind-address={bind}
 character-set-server=utf8mb4
 collation-server=utf8mb4_unicode_ci
 default-time-zone=+08:00
@@ -62,7 +62,8 @@ class EmbeddedServer:
                     extra += "lc-messages-dir=%s\n" % share
                     break
         with open(self.ini, "w", encoding="utf-8") as f:
-            f.write(MY_INI.format(datadir=self.cfg.datadir.replace("\\", "/"), port=self.cfg.port, extra=extra))
+            f.write(MY_INI.format(datadir=self.cfg.datadir.replace("\\", "/"), port=self.cfg.port, extra=extra,
+                                  bind="0.0.0.0" if self.cfg.extra.get("lan") else "127.0.0.1"))
 
     def initialize(self):
         if not self.cfg.mariadb_bin:

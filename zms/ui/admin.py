@@ -118,13 +118,59 @@ class ToolsView(ft.Column):
                                     "廠商、倉庫、人員、代碼與所有單據。會先清空目前的基本資料與單據！",
                                     ft.FilledButton("選擇資料夾並匯入", icon=ft.Icons.DRIVE_FOLDER_UPLOAD,
                                                     on_click=self.do_import)))
-        cards.append(self._card("資料庫連線", "模式：%s　伺服器：%s:%s　資料庫：%s\n設定檔：%s" % (
+        if ctx.svc.can("M1"):
+            cards.append(self._mobile_card())
+        cards.append(self._card("資料庫連線","模式：%s　伺服器：%s:%s　資料庫：%s\n設定檔：%s" % (
             "內建（程式自動啟停）" if cfg.mode == "embedded" else "外部伺服器", cfg.host, cfg.port, cfg.database, cfg.path),
             ft.FilledButton("資料庫連線設定", icon=ft.Icons.STORAGE,
                             on_click=lambda e: app.db_settings() if app else None)))
         super().__init__([section("系統工具", *cards, ft.Row([ft.Text("執行紀錄", weight=ft.FontWeight.BOLD), self.busy]),
                                   ft.Container(self.log, border=ft.Border.all(1, ft.Colors.GREY_300), padding=8,
                                                border_radius=6))], expand=True, scroll=ft.ScrollMode.AUTO)
+
+    def _mobile_card(self):
+        """允許手機（iPhone／Android）透過同一個 Wi-Fi 連到這台電腦的資料庫。"""
+        from .. import lan
+        cfg = self.ctx.svc.db.cfg
+        on = bool(cfg.extra.get("lan"))
+        info = ft.Column(spacing=2)
+        if cfg.mode != "embedded":
+            info.controls = [ft.Text("目前連的是外部伺服器 %s:%s，手機請直接連那台伺服器。" % (cfg.host, cfg.port), size=13)]
+        elif on:
+            ips = lan.lan_ips()
+            info.controls = [
+                ft.Text("手機 App 的「資料庫連線設定」請輸入：", size=13),
+                ft.Text("伺服器：%s" % ("　或　".join(ips) or "（找不到區網 IP）"), size=15, weight=ft.FontWeight.BOLD,
+                        selectable=True),
+                ft.Text("連接埠：%s　　帳號：%s　　密碼：%s" % (cfg.port, lan.MOBILE_USER,
+                                                     cfg.extra.get("mobile_password", "")),
+                        size=15, weight=ft.FontWeight.BOLD, selectable=True),
+                ft.Text("手機要和這台電腦連同一個 Wi-Fi；這台電腦的進銷存程式要開著。第一次開啟時 Windows 防火牆若詢問"
+                        "「mariadbd」是否允許，請勾「私人網路」並允許。", size=12, color=ft.Colors.GREY_700)]
+
+        def toggle(e):
+            want = e.control.value
+
+            def go():
+                if want:
+                    lan.ensure_mobile_user(self.ctx.svc.db, cfg)
+                else:
+                    lan.drop_mobile_user(self.ctx.svc.db)
+                cfg.extra["lan"] = bool(want)
+                self.ctx.svc.log("mobile_access", "on" if want else "off")
+                self.app.restart()   # 重新啟動資料庫，套用區網設定
+            if want:
+                self.ctx.confirm("允許手機連線", "資料庫會開放給同一個區網（Wi-Fi）內的裝置連線，"
+                                 "使用專用帳號與密碼。程式會重新啟動資料庫並回到登入畫面，確定？", go, "允許")
+                e.control.value = False
+                e.control.update()
+            else:
+                go()
+
+        sw = ft.Switch(label="允許手機連線", value=on, disabled=cfg.mode != "embedded" or not self.app,
+                       on_change=toggle)
+        return self._card("手機連線（iPhone／Android）", "開啟後，手機 App 可透過 Wi-Fi 使用這台電腦的資料"
+                          "（庫存查詢、門市銷貨、盤點、營運總覽）。", ft.Column([sw, info]))
 
     def _card(self, title, desc, action):
         return ft.Card(ft.Container(ft.Column([ft.Text(title, size=16, weight=ft.FontWeight.BOLD),

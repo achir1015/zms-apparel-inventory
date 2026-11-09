@@ -104,6 +104,9 @@ class App:
         self.server = None
         self.db = None
         self.svc = None
+        self.mobile = config.is_mobile_env() or page.platform in (ft.PagePlatform.IOS, ft.PagePlatform.ANDROID)
+        if self.mobile and self.cfg.mode == "embedded":
+            self.cfg.mode = "external"   # 手機不能跑資料庫，一律連電腦／伺服器
 
     # ------------------------------------------------ 啟動
     def start(self):
@@ -114,6 +117,8 @@ class App:
         p.theme_mode = ft.ThemeMode.LIGHT
         p.bgcolor = "#F4F6FA"
         p.padding = 0
+        if self.mobile:
+            p.padding = 0
         try:
             p.window.width, p.window.height = 1360, 860
             p.window.min_width, p.window.min_height = 1000, 640
@@ -121,7 +126,23 @@ class App:
             p.window.on_event = self._on_window
         except Exception:
             pass
+        if self.mobile and not self.cfg.host:
+            self.first_mobile_setup()
+            return
         self.boot_screen()
+
+    def first_mobile_setup(self):
+        p = self.page
+        p.controls.clear()
+        p.add(ft.Container(ft.Column([
+            ft.Icon(ft.Icons.PHONE_IPHONE, size=56, color=PRIMARY),
+            ft.Text(APP_NAME, size=22, weight=ft.FontWeight.BOLD, color=PRIMARY, text_align=ft.TextAlign.CENTER),
+            ft.Text("第一次使用：請連到電腦上的進銷存資料庫。\n在電腦版「系統維護 → 工具 → 手機連線」開啟「允許手機連線」，"
+                    "畫面會顯示要輸入的伺服器、帳號與密碼。", size=14, text_align=ft.TextAlign.CENTER),
+            ft.FilledButton("設定連線", icon=ft.Icons.STORAGE, on_click=lambda e: self.db_settings(), height=46)],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER, spacing=18),
+            alignment=ft.Alignment.CENTER, expand=True, padding=24))
+        p.update()
 
     def boot_screen(self):
         p = self.page
@@ -148,7 +169,12 @@ class App:
                 self.server.start()
             log.info("boot: server ready")
             self.db = Database(self.cfg)
-            self.db.ensure_database()
+            if self.mobile:
+                # 手機帳號只有讀寫資料權限；資料表由電腦版建立與升級
+                if not self.db.scalar("SELECT v FROM meta WHERE k='schema_version'"):
+                    raise RuntimeError("這個資料庫還沒有進銷存資料，請先在電腦上開啟一次進銷存系統。")
+            else:
+                self.db.ensure_database()
             config.save(self.cfg)
             self.svc = Service(self.db)
             self.ctx = Ctx(self.page, self.svc)
@@ -168,8 +194,9 @@ class App:
     def db_settings(self):
         """選擇內建 MariaDB 或連既有的 MariaDB 伺服器（例如筆電上已安裝的那套）。"""
         p, c = self.page, self.cfg
-        mode = ft.RadioGroup(value=c.mode, content=ft.Column([
-            ft.Radio(value="embedded", label="內建 MariaDB（程式自動啟動、關閉即停止，資料放在本機）"),
+        mode = ft.RadioGroup(value="external" if self.mobile else c.mode, content=ft.Column([
+            ft.Radio(value="embedded", label="內建 MariaDB（程式自動啟動、關閉即停止，資料放在本機）",
+                     visible=not self.mobile),
             ft.Radio(value="external", label="連到既有的 MariaDB 伺服器（本機已安裝的、或公司伺服器）")], spacing=0))
         host = tf("伺服器", c.host if c.mode == "external" else "127.0.0.1", width=200)
         port = tf("連接埠", str(c.port if c.mode == "external" else 3306), width=100)
@@ -220,7 +247,8 @@ class App:
             c.extra["embedded_password"] = c.password
         p.show_dialog(ft.AlertDialog(
             modal=True, title=ft.Text("資料庫連線設定"),
-            content=ft.Container(ft.Column([mode, ext, msg], tight=True, scroll=ft.ScrollMode.AUTO), width=560),
+            content=ft.Container(ft.Column([mode, ext, msg], tight=True, scroll=ft.ScrollMode.AUTO),
+                                 width=None if self.mobile else 560),
             actions=[ft.TextButton("取消", on_click=lambda e: p.pop_dialog()),
                      ft.OutlinedButton("測試連線", icon=ft.Icons.WIFI_TETHERING, on_click=test),
                      ft.FilledButton("儲存並重新連線", icon=ft.Icons.SAVE, on_click=save)]))
@@ -289,7 +317,8 @@ class App:
             ft.Text("v%s　資料庫：%s" % (APP_VERSION, "內建" if self.cfg.mode == "embedded" else
                                         "%s:%s" % (self.cfg.host, self.cfg.port)), size=11, color=ft.Colors.GREY_500)],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12, tight=True),
-            padding=36, bgcolor=ft.Colors.WHITE, border_radius=16, width=400,
+            padding=20 if self.mobile else 36, bgcolor=ft.Colors.WHITE, border_radius=16,
+            width=340 if self.mobile else 400,
             shadow=ft.BoxShadow(blur_radius=24, color="#22000000"))
         p.controls.clear()
         p.add(ft.Column([ft.Container(box, alignment=ft.Alignment.CENTER, padding=20)],
@@ -305,6 +334,10 @@ class App:
 
     def show_main(self):
         p = self.page
+        if self.mobile:
+            from .mobile import MobileShell
+            MobileShell(self).show()
+            return
         self.menu = [(g, ic, [it for it in items if self.allowed(it[0])]) for g, ic, items in build_menu(self.ctx, self)]
         self.menu = [m for m in self.menu if m[2]]
         self.rail = ft.NavigationRail(

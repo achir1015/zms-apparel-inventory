@@ -274,3 +274,26 @@ def test_box_labels(svc):
     pi = svc.list_docs("PI", limit=1)[0]["id"]
     with pytest.raises(BizError):
         svc.box_info(pi)
+
+
+def test_mobile_user(svc):
+    """手機專用帳號：能讀寫資料，但不能改資料表結構。"""
+    import pymysql
+    from zms import lan
+    cfg = svc.db.cfg
+    pw = lan.ensure_mobile_user(svc.db, cfg)
+    try:
+        c = pymysql.connect(host=cfg.host, port=int(cfg.port), user=lan.MOBILE_USER, password=pw, database=cfg.database)
+        with c.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM products")
+            assert cur.fetchone()[0] > 0
+            with pytest.raises(pymysql.err.OperationalError):
+                cur.execute("DROP TABLE products")
+        c.close()
+        m = Service(Database(config.Config(**{**cfg.__dict__, "user": lan.MOBILE_USER, "password": pw})))
+        m.login("admin", "1234")
+        did = m.save_doc("TA", dict(doc_date="115/12/21", sh_no="S1"), [dict(prod_no="T200", color="01", size="M", qty=1)])
+        assert did
+    finally:
+        lan.drop_mobile_user(svc.db)
+    assert lan.lan_ips() is not None

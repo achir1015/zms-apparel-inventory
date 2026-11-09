@@ -17,7 +17,7 @@ def app_dir() -> str:
 
 
 def data_dir() -> str:
-    env = os.environ.get("ZMS_DATA_DIR")
+    env = os.environ.get("ZMS_DATA_DIR") or os.environ.get("FLET_APP_STORAGE_DATA")  # 後者＝手機 App 的資料夾
     if env:
         os.makedirs(env, exist_ok=True)
         return env
@@ -91,9 +91,16 @@ class Config:
         return os.path.join(data_dir(), "config.json")
 
 
+def is_mobile_env() -> bool:
+    """手機 App（Flet 打包的 iOS／Android）或測試用 ZMS_MOBILE=1。"""
+    return bool(os.environ.get("ZMS_MOBILE") or os.environ.get("FLET_APP_STORAGE_DATA"))
+
+
 def load() -> Config:
     p = os.path.join(data_dir(), "config.json")
     cfg = Config()
+    if is_mobile_env():
+        cfg.mode, cfg.host, cfg.port, cfg.user = "external", "", 3318, "zms_mobile"
     if os.path.isfile(p):
         with open(p, encoding="utf-8") as f:
             raw = json.load(f)

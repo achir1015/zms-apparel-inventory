@@ -9,7 +9,7 @@
 到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）。macOS 版製作中。
 
 ## 安裝（Windows 10/11 64 位元）
-- 執行 `ZMSInventory-Setup-0.5.0.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
+- 執行 `ZMSInventory-Setup-0.6.0.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
 - 安裝檔內附 MariaDB 10.11，別台電腦不必另外安裝。
 - 安裝版的資料與設定在 `%LOCALAPPDATA%\ZMSInventory`（`config.json`、`mariadb\`、`zms.log`）；解除安裝不會刪除資料。
 - 重新建置：`.venv\Scripts\python tools\build_windows.py`（flet pack ＋ Inno Setup 6）。
@@ -19,6 +19,12 @@
 - 也可在登入畫面或「系統維護 → 工具」按「資料庫連線設定」，改連既有的 MariaDB（例如筆電上 port 3306 的那套），有「測試連線」按鈕。
 - Windows 版 MariaDB 的 root 若只允許 Windows 驗證（GSSAPI），請先用 HeidiSQL 建專用帳號：
   `CREATE USER 'zms'@'localhost' IDENTIFIED BY '密碼'; GRANT ALL ON zms_inventory.* TO 'zms'@'localhost';`
+
+## 手機版（iPhone／Android）
+- 筆電版開啟「系統維護 → 工具 → 手機連線 → 允許手機連線」，畫面會顯示伺服器 IP、連接埠、帳號與密碼。
+- 手機和筆電連同一個 Wi-Fi，手機 App 第一次開啟時輸入這些資料即可（筆電的進銷存要開著）。
+- 手機版功能：營運總覽、庫存查詢（顏色×尺寸）、門市銷貨（掃吊牌、自動套特價、現金／刷卡／禮券）、盤點（每掃一次＋1，可看盤差）。
+- 手機用專用帳號 `zms_mobile`，只能讀寫資料、不能改資料表結構。
 
 ## 開發版執行
 - 雙擊 `啟動進銷存系統.bat`（資料在 `data\`）。

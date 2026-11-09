@@ -124,3 +124,41 @@ def test_specials_and_box_ui(ctx):
         dv.open(rows[0]["id"])
         dv._box_labels()
         assert "裝箱標籤" in ctx.page.last.title.value
+
+
+def test_mobile_shell(ctx):
+    """手機版四個分頁：建立、掃描加入、結帳、盤點儲存。"""
+    from types import SimpleNamespace
+    from zms.ui import mobile
+    from zms import config as cfgmod
+    page = ctx.page
+    page.controls = []
+    page.add = lambda *c: page.controls.extend(c)
+    page.platform = None
+    app = SimpleNamespace(page=page, svc=ctx.svc, cfg=cfgmod.load(), logout=lambda: None)
+    sh = mobile.MobileShell(app)
+    sh.show()
+    assert [t[0] for t in sh.tabs] == ["總覽", "庫存", "銷貨", "盤點"]
+    for i in range(4):
+        sh.select(i)
+    p = ctx.svc.db.one("SELECT * FROM products WHERE barcode='' AND name<>'' LIMIT 1")
+    code = ctx.svc.barcode_text(p)
+    st = sh.views["庫存"]
+    st.update = lambda: None
+    st.code.value = p["prod_no"]
+    st.search()
+    assert st.result.controls
+    sales = sh.views["銷貨"]
+    sales.update = lambda: None
+    sales.code.update = sales.code.focus = lambda: None
+    sales.code.value = code
+    sales.scan()
+    assert sales.lines.lines and sales.lines.lines[0]["qty"] == 1
+    tk = sh.views["盤點"]
+    tk.update = lambda: None
+    tk.code.update = tk.code.focus = lambda: None
+    tk.code.value = code
+    tk.scan()
+    tk.code.value = code
+    tk.scan()
+    assert tk.lines.lines[0]["qty"] == 2
