@@ -3,7 +3,7 @@
 <img width="1348" height="853" alt="image" src="https://github.com/user-attachments/assets/6bcd876f-0da4-442f-98cf-99e8d31ea7ab" />
 <img width="1349" height="855" alt="image" src="https://github.com/user-attachments/assets/50a99a1b-dc75-457b-bdab-e8b7fe060d90" />
 
-舊「凱新資訊 VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版**。
+舊「服飾業VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版**。
 
 ## 下載
 到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）。macOS 版製作中。
