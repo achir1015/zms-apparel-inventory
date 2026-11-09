@@ -6,7 +6,7 @@
 舊「服飾業VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版**。
 
 ## 下載
-到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）。macOS 版製作中。
+到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）或 `ZMSInventory-<版本>-android.apk`（Android 手機）。macOS、iPhone 版製作中。
 
 ## 安裝（Windows 10/11 64 位元）
 - 執行 `ZMSInventory-Setup-0.6.1.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
