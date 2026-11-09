@@ -2,8 +2,11 @@
 
 舊「凱新資訊 VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版**。
 
+## 下載
+到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）。macOS 版製作中。
+
 ## 安裝（Windows 10/11 64 位元）
-- 執行 `dist-installer\ZMSInventory-Setup-0.5.0.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
+- 執行 `ZMSInventory-Setup-0.5.0.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
 - 安裝檔內附 MariaDB 10.11，別台電腦不必另外安裝。
 - 安裝版的資料與設定在 `%LOCALAPPDATA%\ZMSInventory`（`config.json`、`mariadb\`、`zms.log`）；解除安裝不會刪除資料。
 - 重新建置：`.venv\Scripts\python tools\build_windows.py`（flet pack ＋ Inno Setup 6）。
