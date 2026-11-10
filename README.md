@@ -3,16 +3,23 @@
 <img width="1348" height="853" alt="image" src="https://github.com/user-attachments/assets/6bcd876f-0da4-442f-98cf-99e8d31ea7ab" />
 <img width="1349" height="855" alt="image" src="https://github.com/user-attachments/assets/50a99a1b-dc75-457b-bdab-e8b7fe060d90" />
 
-舊「服飾業VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版**。
+舊「服飾業VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版、macOS 版、Android 手機版**。
 
 ## 下載
-到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）或 `ZMSInventory-<版本>-android.apk`（Android 手機）。macOS、iPhone 版製作中。
+到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）、`ZMSInventory-<版本>-mac-x86_64.dmg`（macOS）或 `ZMSInventory-<版本>-android.apk`（Android 手機）。iPhone 版製作中。
 
 ## 安裝（Windows 10/11 64 位元）
 - 執行 `ZMSInventory-Setup-0.6.1.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
 - 安裝檔內附 MariaDB 10.11，別台電腦不必另外安裝。
 - 安裝版的資料與設定在 `%LOCALAPPDATA%\ZMSInventory`（`config.json`、`mariadb\`、`zms.log`）；解除安裝不會刪除資料。
 - 重新建置：`.venv\Scripts\python tools\build_windows.py`（flet pack ＋ Inno Setup 6）。
+
+## 安裝（macOS）
+- 打開 DMG，把 App 拖到「應用程式」。Intel Mac、macOS 11 以上；Apple 晶片 Mac 可透過 Rosetta 2 執行。
+- 第一次開啟出現「無法驗證開發者」：「系統設定 → 隱私權與安全性」下方按「仍要打開」。
+- Mac 版**不內附資料庫**，第一次開啟按「設定連線」，連到放資料的電腦（例如 Windows 筆電上的 MariaDB，填該電腦「手機連線」卡片上的 IP、連接埠、帳號與密碼）。
+- macOS 詢問「區域網路」權限時請按「允許」，否則會出現 No route to host。
+- 資料與設定在 `~/Library/Application Support/ZMSInventory`。重新建置（在 Mac 上）：`bash tools/build_macos.sh`。
 
 ## 資料庫
 - 預設「內建 MariaDB」：程式開啟時自動啟動（port 3318，只聽本機），關閉視窗時自動停止。資料庫名稱 `zms_inventory`。
