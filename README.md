@@ -3,10 +3,10 @@
 <img width="1348" height="853" alt="image" src="https://github.com/user-attachments/assets/6bcd876f-0da4-442f-98cf-99e8d31ea7ab" />
 <img width="1349" height="855" alt="image" src="https://github.com/user-attachments/assets/50a99a1b-dc75-457b-bdab-e8b7fe060d90" />
 
-舊「服飾業VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版、macOS 版、Android 手機版**。
+舊「服飾業VD20 進銷存」的 Python 重寫版。資料庫 MariaDB，介面 Flet（同一份程式可出 Windows、macOS、Android、iPhone）。目前完成 **Windows 11 桌面版、macOS 版、Android 與 iPhone 手機版**。
 
 ## 下載
-到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）、`ZMSInventory-<版本>-mac-x86_64.dmg`（macOS）或 `ZMSInventory-<版本>-android.apk`（Android 手機）。iPhone 版製作中。
+到 [Releases 最新版](https://github.com/achir1015/zms-apparel-inventory/releases/latest) 下載 `ZMSInventory-Setup-<版本>.exe`（Windows）、`ZMSInventory-<版本>-mac-x86_64.dmg`（macOS）、`ZMSInventory-<版本>-android.apk`（Android 手機）或 `ZMSInventory-<版本>-ios.ipa`（iPhone／iPad，限開發者帳號登記過的裝置）。
 
 ## 安裝（Windows 10/11 64 位元）
 - 執行 `ZMSInventory-Setup-0.6.1.exe`（不需系統管理員權限，預設裝在 `%LOCALAPPDATA%\Programs\ZMSInventory`）。
@@ -33,6 +33,8 @@
 - 手機和筆電連同一個 Wi-Fi，手機 App 第一次開啟時輸入這些資料即可（筆電的進銷存要開著）。
 - 手機版功能：營運總覽、庫存查詢（顏色×尺寸）、門市銷貨（掃吊牌、自動套特價、現金／刷卡／禮券）、盤點（每掃一次＋1，可看盤差）。
 - 手機用專用帳號 `zms_mobile`，只能讀寫資料、不能改資料表結構。
+- 「伺服器」要填**筆電**的 IP（卡片上顯示的那個），不是手機自己的 IP。
+- iPhone／iPad：`.ipa` 是 Ad Hoc 簽章，只能裝在開發者帳號登記過 UDID 的裝置（用 Mac 的 Xcode「裝置與模擬器」或 `xcrun devicectl device install app` 安裝，手機要解鎖）。第一次開啟時要允許「區域網路」，必要時在「設定 → 隱私權與安全性」開啟「開發者模式」。重新建置（在 Mac 的終端機）：`bash tools/build_ios.sh`。
 
 ## 開發版執行
 - 雙擊 `啟動進銷存系統.bat`（資料在 `data\`）。
