@@ -19,6 +19,7 @@
 - 也可在登入畫面或「系統維護 → 工具」按「資料庫連線設定」，改連既有的 MariaDB（例如筆電上 port 3306 的那套），有「測試連線」按鈕。
 - Windows 版 MariaDB 的 root 若只允許 Windows 驗證（GSSAPI），請先用 HeidiSQL 建專用帳號：
   `CREATE USER 'zms'@'localhost' IDENTIFIED BY '密碼'; GRANT ALL ON zms_inventory.* TO 'zms'@'localhost';`
+- 忘記 MariaDB root 密碼：見 [忘記 MariaDB root 密碼的重設方法](docs/reset-mariadb-root-password.md)。
 
 ## 手機版（iPhone／Android）
 - 筆電版開啟「系統維護 → 工具 → 手機連線 → 允許手機連線」，畫面會顯示伺服器 IP、連接埠、帳號與密碼。
