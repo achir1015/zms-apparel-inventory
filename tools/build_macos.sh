@@ -70,6 +70,9 @@ APP="dist/ZMSInventory.app"
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $NAME" "$APP/Contents/Info.plist" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string $NAME" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 11.0" "$APP/Contents/Info.plist" 2>/dev/null || true
+# macOS 15 起連區網其他電腦（筆電上的 MariaDB）要使用者允許「區域網路」，沒有說明文字會直接被擋（No route to host）
+/usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string 連線到區域網路中存放進銷存資料的電腦（MariaDB 資料庫）。" \
+  "$APP/Contents/Info.plist" 2>/dev/null || true
 codesign --force --deep -s - "$APP"
 
 echo "== 5. DMG"
@@ -77,6 +80,8 @@ DMGDIR="$STAGE/dmg"; mkdir -p "$DMGDIR"
 cp -R "$APP" "$DMGDIR/$NAME.app"
 ln -s /Applications "$DMGDIR/Applications"
 DMG="$OUT/ZMSInventory-$VER-mac-$ARCH.dmg"
-for i in 1 2 3; do hdiutil create -volname "$NAME" -srcfolder "$DMGDIR" -ov -format UDZO "$DMG" >/dev/null && break; sleep 3; done
+# 自動估算大小在這台 Mac 會誤報「裝置已經沒有空間」→ 明確指定（內容大小 ×2＋100MB）
+SIZE_MB=$(( $(du -sm "$DMGDIR" | cut -f1) * 2 + 100 ))
+for i in 1 2 3; do hdiutil create -size ${SIZE_MB}m -volname "$NAME" -srcfolder "$DMGDIR" -ov -format UDZO "$DMG" >/dev/null && break; sleep 3; done
 ls -lh "$DMG"
 echo "完成：$DMG"
