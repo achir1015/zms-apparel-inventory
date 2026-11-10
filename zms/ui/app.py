@@ -129,7 +129,26 @@ class App:
         if self.mobile and not self.cfg.host:
             self.first_mobile_setup()
             return
+        if self.cfg.mode == "embedded" and not self.cfg.mariadb_bin:
+            # 這台電腦沒有可用的 MariaDB（例如 Mac 版不內附）→ 改連其他電腦上的進銷存資料庫
+            self.cfg.mode, self.cfg.host, self.cfg.port, self.cfg.user = "external", "", 3307, "zms_mobile"
+            self.first_client_setup()
+            return
         self.boot_screen()
+
+    def first_client_setup(self):
+        p = self.page
+        p.controls.clear()
+        p.add(ft.Container(ft.Column([
+            ft.Icon(ft.Icons.LAPTOP_MAC, size=56, color=PRIMARY),
+            ft.Text(APP_NAME, size=26, weight=ft.FontWeight.BOLD, color=PRIMARY),
+            ft.Text("這台電腦沒有內建資料庫，請連到放資料的那台電腦（例如 Windows 筆電上的 MariaDB）。\n"
+                    "在那台電腦的進銷存「系統維護 → 工具 → 手機連線」打開「允許手機連線」，"
+                    "把卡片上的伺服器 IP、連接埠、帳號與密碼填進來即可。", size=15, text_align=ft.TextAlign.CENTER),
+            ft.FilledButton("設定連線", icon=ft.Icons.STORAGE, on_click=lambda e: self.db_settings(), height=46)],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER, spacing=18),
+            alignment=ft.Alignment.CENTER, expand=True, padding=40))
+        p.update()
 
     def first_mobile_setup(self):
         p = self.page
@@ -174,7 +193,13 @@ class App:
                 if not self.db.scalar("SELECT v FROM meta WHERE k='schema_version'"):
                     raise RuntimeError("這個資料庫還沒有進銷存資料，請先在電腦上開啟一次進銷存系統。")
             else:
-                self.db.ensure_database()
+                try:
+                    self.db.ensure_database()
+                except Exception as ex:
+                    # 只有讀寫權限的帳號（例如 Mac 用 zms_mobile 連筆電）：資料表已存在就照常使用
+                    if not self.db.scalar("SELECT v FROM meta WHERE k='schema_version'"):
+                        raise
+                    log.info("boot: schema upgrade skipped (%s)", ex)
             config.save(self.cfg)
             self.svc = Service(self.db)
             self.ctx = Ctx(self.page, self.svc)

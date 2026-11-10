@@ -5,14 +5,19 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH=/usr/local/bin:/opt/homebrew/bin:$PATH
+# python.org 版 Python 沒有系統憑證：用 certifi（flet 要下載 macOS 用戶端）
+export SSL_CERT_FILE=$(.venv/bin/python -m certifi 2>/dev/null || true)
 VER=$(.venv/bin/python -c "import zms; print(zms.APP_VERSION)")
 NAME=$(.venv/bin/python -c "import zms; print(zms.APP_NAME)")
 ARCH=$(uname -m)
-MDB=$(brew --prefix mariadb)
+MDB=$(brew --prefix mariadb 2>/dev/null || echo /nonexistent)
 OUT=dist-mac
 STAGE=build-mac
 rm -rf "$STAGE" dist "$OUT" && mkdir -p "$STAGE" "$OUT"
+BUNDLE=0
+[ -x "$MDB/bin/mariadbd" ] && command -v dylibbundler >/dev/null && BUNDLE=1
 
+if [ "$BUNDLE" = 1 ]; then
 echo "== 1. 準備內附 MariaDB（$MDB）"
 M="$STAGE/mariadb"
 mkdir -p "$M/bin" "$M/lib" "$M/share"
@@ -44,6 +49,9 @@ for i in $(seq 1 40); do nc -z 127.0.0.1 3399 2>/dev/null && break; sleep 0.5; d
 "$M/bin/mariadb-admin" -h127.0.0.1 -P3399 -uroot shutdown
 wait $PID || true
 rm -rf "$T"
+else
+echo "== 1-2. 沒有 Homebrew 的 MariaDB：Mac 版不內附資料庫，開啟後連到其他電腦上的進銷存資料庫"
+fi
 
 echo "== 3. 圖示"
 ICONSET="$STAGE/icon.iconset"; mkdir -p "$ICONSET"
@@ -58,7 +66,7 @@ echo "== 4. flet pack（PyInstaller）"
   --add-data "assets:assets" "zms/schema.sql:zms" --product-name "$NAME" --product-version "$VER" \
   --bundle-id com.achir.zmsinventory --copyright "© 2026 吳玉柱"
 APP="dist/ZMSInventory.app"
-cp -R "$M" "$APP/Contents/Resources/mariadb"
+[ "$BUNDLE" = 1 ] && cp -R "$M" "$APP/Contents/Resources/mariadb"
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $NAME" "$APP/Contents/Info.plist" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string $NAME" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 11.0" "$APP/Contents/Info.plist" 2>/dev/null || true
