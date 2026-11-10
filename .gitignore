@@ -12,3 +12,4 @@ dist-mac/
 *.log
 data_mobile/
 dist-android/
+dist-ios/
